@@ -933,7 +933,7 @@ const App = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {reminders.map(reminder => {
+                    {(reminders || []).map(reminder => {
                       const lead = leads.find(l => l.id === reminder.leadId)
                       const isOverdue = new Date(reminder.dueDate) < new Date() && !reminder.completed
                       return (
