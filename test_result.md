@@ -131,15 +131,18 @@ backend:
   
   - task: "Lead search and filtering"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented query parameters for search and status filtering in GET /api/leads. Needs testing."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed. All 8 search and filtering tests passed: search by name, search by email, case insensitive search, filter by status (New/Contacted), combined search+filter, empty search returns all, invalid status filter. Search functionality works with regex patterns for name and email fields. Status filtering works correctly with exact matches."
   
   - task: "Reminders CRUD and notifications"
     implemented: true
