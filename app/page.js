@@ -796,7 +796,7 @@ const App = () => {
                           </div>
                         </div>
 
-                        {payments.length > 0 && (
+                        {Array.isArray(payments) && payments.length > 0 && (
                           <>
                             <Separator />
                             <div>
