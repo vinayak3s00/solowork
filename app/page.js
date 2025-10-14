@@ -1092,7 +1092,7 @@ const App = () => {
                           </Button>
                         </div>
                       ))}
-                      {apiKeys.length === 0 && (
+                      {(!apiKeys || apiKeys.length === 0) && (
                         <p className="text-center text-slate-500 py-4">No API keys added yet</p>
                       )}
                     </div>
