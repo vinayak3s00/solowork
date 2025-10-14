@@ -276,8 +276,6 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Lead search and filtering"
-    - "Reminders CRUD and notifications"
     - "All frontend features"
   stuck_tasks: []
   test_all: false
