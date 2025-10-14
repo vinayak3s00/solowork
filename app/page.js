@@ -491,7 +491,7 @@ const App = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(filteredLeads || []).slice(0, 5).map(lead => (
+                  {Array.isArray(filteredLeads) && filteredLeads.slice(0, 5).map(lead => (
                     <div key={lead.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => { setSelectedLead(lead); setActiveTab('leads'); }}>
                       <div className="flex-1">
                         <h3 className="font-semibold text-slate-900">{lead.name}</h3>
