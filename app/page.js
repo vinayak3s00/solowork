@@ -802,7 +802,7 @@ const App = () => {
                             <div>
                               <Label className="mb-2 block">Payment History</Label>
                               <div className="space-y-2">
-                                {payments.map(payment => (
+                                {(payments || []).map(payment => (
                                   <div key={payment.id} className="p-2 bg-green-50 rounded text-sm border border-green-200">
                                     <div className="flex justify-between items-start">
                                       <div>
