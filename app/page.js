@@ -1002,7 +1002,7 @@ const App = () => {
                         </div>
                       )
                     })}
-                    {reminders.length === 0 && (
+                    {(!reminders || reminders.length === 0) && (
                       <p className="text-center text-slate-500 py-8">No reminders yet</p>
                     )}
                   </div>
