@@ -543,7 +543,7 @@ const App = () => {
                   <CardContent>
                     <ScrollArea className="h-[600px] pr-4">
                       <div className="space-y-3">
-                        {(filteredLeads || []).map(lead => (
+                        {Array.isArray(filteredLeads) && filteredLeads.map(lead => (
                           <div
                             key={lead.id}
                             className={`p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer border-2 ${selectedLead?.id === lead.id ? 'border-blue-500' : 'border-transparent'}`}
