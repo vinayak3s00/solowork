@@ -1076,7 +1076,7 @@ const App = () => {
                   <div>
                     <h3 className="font-semibold mb-4">Saved API Keys</h3>
                     <div className="space-y-2">
-                      {(apiKeys || []).map(key => (
+                      {Array.isArray(apiKeys) && apiKeys.map(key => (
                         <div key={key.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                           <div>
                             <p className="font-medium text-slate-900">{key.name}</p>
