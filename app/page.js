@@ -573,7 +573,7 @@ const App = () => {
                             </p>
                           </div>
                         ))}
-                        {filteredLeads.length === 0 && (
+                        {(!filteredLeads || filteredLeads.length === 0) && (
                           <p className="text-center text-slate-500 py-8">No leads found</p>
                         )}
                       </div>
