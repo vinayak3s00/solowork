@@ -44,22 +44,22 @@ export default function CapturePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center px-4 py-10">
       <Toaster position="top-right" richColors />
       <div className="w-full max-w-2xl">
         <div className="flex items-center justify-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
             <Users className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Get in Touch</h1>
+          <h1 className="text-2xl font-bold text-foreground">Get in Touch</h1>
         </div>
 
         <Card>
           {submitted ? (
             <CardContent className="py-16 text-center">
               <CheckCircle2 className="w-14 h-14 text-green-500 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-slate-900 mb-1">Thank you!</h2>
-              <p className="text-slate-500">
+              <h2 className="text-xl font-semibold text-foreground mb-1">Thank you!</h2>
+              <p className="text-muted-foreground">
                 Your information has been received. We&apos;ll be in touch shortly.
               </p>
             </CardContent>

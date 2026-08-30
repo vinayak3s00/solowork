@@ -13,6 +13,10 @@ A complete CRM solution built for solo entrepreneurs and small businesses. Manag
 - ✅ **Analytics Dashboard**: Real-time metrics and insights
 - ✅ **Admin Settings**: Manage multiple AI API keys
 - ✅ **Beautiful UI**: Modern, responsive design with shadcn/ui
+- ✅ **Dark mode**: System-aware theme with a one-click toggle
+- ✅ **Loading skeletons & empty states**: Polished perceived performance
+- ✅ **CSV export**: Download your (filtered) leads
+- ✅ **Configurable currency**: Set `NEXT_PUBLIC_CURRENCY` (e.g. USD, EUR, INR)
 
 ### Communication (Optional)
 - 📧 Email notifications (SMTP) - configure in .env

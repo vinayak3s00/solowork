@@ -1,15 +1,23 @@
 import './globals.css'
+import { ThemeProvider } from '@/components/ThemeProvider'
 
 export const metadata = {
-  title: 'Next.js MongoDB Template',
-  description: 'A simple template with App Router, MongoDB, and shadcn/ui',
+  title: 'SoloCRM — Micro CRM for Solopreneurs',
+  description: 'Manage leads, reminders, and payments. Built for solo entrepreneurs.',
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
