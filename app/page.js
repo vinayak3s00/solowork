@@ -13,9 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { toast, Toaster } from 'sonner'
-import { Users, TrendingUp, DollarSign, Bell, Plus, Search, Settings, Edit, Trash2, Calendar, Mail, MessageSquare, Save, Key } from 'lucide-react'
+import { Users, TrendingUp, DollarSign, Bell, Plus, Search, Settings, Edit, Trash2, Calendar, Mail, MessageSquare, Save, Key, LogOut } from 'lucide-react'
+import AuthGate, { useAuth } from '@/components/AuthGate'
 
 const App = () => {
+  const { user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [leads, setLeads] = useState([])
   const [filteredLeads, setFilteredLeads] = useState([])
@@ -389,15 +391,32 @@ const App = () => {
                 <p className="text-sm text-slate-500">Micro CRM for Solopreneurs</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveTab('settings')}
-              className="gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              Settings
-            </Button>
+            <div className="flex items-center gap-3">
+              {user && (
+                <span className="hidden sm:block text-sm text-slate-500">
+                  {user.name || user.email}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab('settings')}
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="gap-2"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign out</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -912,11 +931,11 @@ const App = () => {
                 <CardContent>
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                     <code className="text-sm text-slate-700">
-                      {typeof window !== 'undefined' ? window.location.origin : ''}/
+                      {typeof window !== 'undefined' ? window.location.origin : ''}/capture
                     </code>
                   </div>
                   <p className="text-sm text-slate-500 mt-2">
-                    Clients can visit this page and use the "Capture Lead" tab to submit their information.
+                    Share this public link with potential clients. They can submit their information without signing in.
                   </p>
                 </CardContent>
               </Card>
@@ -1148,4 +1167,10 @@ const App = () => {
   )
 }
 
-export default App
+export default function Page() {
+  return (
+    <AuthGate>
+      <App />
+    </AuthGate>
+  )
+}

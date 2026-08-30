@@ -82,6 +82,12 @@ See [DOCUMENTATION.md](./DOCUMENTATION.md) for complete API reference.
 
 ### Quick Reference
 
+**Auth:**
+- `POST /api/auth/register` - Create the owner account (only while no user exists)
+- `POST /api/auth/login` - Sign in, sets a session cookie
+- `POST /api/auth/logout` - Clear the session
+- `GET /api/auth/me` - Current user, or `{ authenticated: false, needsSetup }`
+
 **Leads:**
 - `POST /api/leads` - Create lead
 - `GET /api/leads?search=john&status=New` - List leads
@@ -181,7 +187,9 @@ README.md                        # This file
 ## 🔐 Security Notes
 
 **Current (MVP):**
-- No authentication (single user) — planned next
+- **Authentication** via session cookies (httpOnly, SameSite=Lax, Secure in prod); passwords hashed with scrypt
+- **Per-owner data scoping** — every lead, reminder, payment, and API key is isolated by owner
+- Public lead-capture endpoint stays open (rate-limited); everything else requires login
 - **AI API keys encrypted at rest** (AES-256-GCM) and masked in responses
 - **All API input validated** with zod (email format, amounts, dates, enums, lengths)
 - **Rate limiting** on the public lead-capture endpoint (10 req/min per IP)
