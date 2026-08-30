@@ -105,9 +105,13 @@ See [DOCUMENTATION.md](./DOCUMENTATION.md) for complete API reference.
 - `POST /api/auth/logout` - Clear the session
 - `GET /api/auth/me` - Current user, or `{ authenticated: false, needsSetup }`
 
+> **List endpoints are paginated.** `GET` list responses return an envelope:
+> `{ items, total, page, pageSize, totalPages }`. Control with `?page=` (default 1)
+> and `?pageSize=` (default 25, max 100).
+
 **Leads:**
 - `POST /api/leads` - Create lead
-- `GET /api/leads?search=john&status=New` - List leads
+- `GET /api/leads?search=john&status=New&page=1&pageSize=25` - List leads (paginated, server-side search/filter)
 - `GET /api/leads/:id` - Get lead
 - `PATCH /api/leads/:id` - Update lead
 - `DELETE /api/leads/:id` - Delete lead
