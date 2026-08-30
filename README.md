@@ -19,9 +19,14 @@ A complete CRM solution built for solo entrepreneurs and small businesses. Manag
 - ✅ **Configurable currency**: Set `NEXT_PUBLIC_CURRENCY` (e.g. USD, EUR, INR)
 
 ### Communication (Optional)
-- 📧 Email notifications (SMTP) - configure in .env
-- 💬 WhatsApp notifications (Meta Cloud API) - configure in .env
+- 📧 **Email notifications (SMTP)** — real sending via nodemailer when configured
+- 💬 WhatsApp notifications (Meta Cloud API) — stub, graceful fallback
 - ⚠️ **App works without these integrations** (graceful fallback)
+
+**Email setup:** set `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` in `.env` (see `.env.example`).
+Port 465 uses implicit TLS automatically; other ports use STARTTLS (override with `SMTP_SECURE`).
+`SMTP_FROM` sets the sender address (defaults to `SMTP_USER`). If any of the three required
+values is missing, reminder emails are skipped without error.
 
 ## 🛠️ Tech Stack
 
@@ -155,7 +160,9 @@ lib/
     ├── schemas.js               # zod validation schemas
     ├── crypto.js                # AES-256-GCM encrypt/decrypt/mask
     ├── rateLimit.js             # In-memory rate limiter
-    ├── notifications.js         # Email/WhatsApp (graceful fallback)
+    ├── mailer.js                # Cached SMTP transporter (nodemailer)
+    ├── notifications.js         # Email (SMTP) / WhatsApp (graceful fallback)
+    ├── pagination.js            # page/pageSize parsing + envelope
     └── handlers/                # Per-resource route handlers
         ├── leads.js
         ├── reminders.js
