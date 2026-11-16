@@ -51,8 +51,8 @@ export default function AuthGate({ children }) {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -106,7 +106,7 @@ function AuthScreen({ needsSetup, onSuccess }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mb-2">
@@ -162,7 +162,7 @@ function AuthScreen({ needsSetup, onSuccess }) {
           </form>
 
           {!needsSetup && (
-            <p className="text-center text-sm text-slate-500 mt-4">
+            <p className="text-center text-sm text-muted-foreground mt-4">
               {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
               <button
                 type="button"
