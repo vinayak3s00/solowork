@@ -46,13 +46,17 @@ cd solocrm
 yarn install
 ```
 
-3. **Set up environment variables:**
+3. **Set up environment variables:** (copy `.env.example` to `.env`)
 ```bash
 # Required
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=solocrm
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 CORS_ORIGINS=*
+
+# Required - used to encrypt AI API keys at rest (AES-256-GCM).
+# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+APP_ENCRYPTION_KEY=your_64_char_hex_key
 
 # Optional - Email (SMTP)
 SMTP_HOST=smtp.gmail.com
@@ -117,10 +121,24 @@ components/
 └── ui/                          # shadcn/ui components
 
 lib/
-└── utils/                       # Utility functions
+├── utils.js                     # UI class-name helper
+└── server/                      # Backend modules (server-only)
+    ├── mongo.js                 # Cached MongoDB connection
+    ├── http.js                  # CORS, JSON + safe error responses
+    ├── schemas.js               # zod validation schemas
+    ├── crypto.js                # AES-256-GCM encrypt/decrypt/mask
+    ├── rateLimit.js             # In-memory rate limiter
+    ├── notifications.js         # Email/WhatsApp (graceful fallback)
+    └── handlers/                # Per-resource route handlers
+        ├── leads.js
+        ├── reminders.js
+        ├── payments.js
+        ├── apiKeys.js
+        └── analytics.js
 
 DOCUMENTATION.md                 # Complete enterprise roadmap
 README.md                        # This file
+.env.example                     # Environment variable template
 ```
 
 ## 🎯 Usage
@@ -163,9 +181,12 @@ README.md                        # This file
 ## 🔐 Security Notes
 
 **Current (MVP):**
-- No authentication (single user)
-- API keys masked in responses
-- CORS enabled for all origins
+- No authentication (single user) — planned next
+- **AI API keys encrypted at rest** (AES-256-GCM) and masked in responses
+- **All API input validated** with zod (email format, amounts, dates, enums, lengths)
+- **Rate limiting** on the public lead-capture endpoint (10 req/min per IP)
+- Error responses never leak internal details or stack traces
+- CORS configurable via `CORS_ORIGINS`
 
 **For Production (See DOCUMENTATION.md):**
 - Implement authentication (NextAuth.js)
