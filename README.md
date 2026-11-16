@@ -19,9 +19,14 @@ A complete CRM solution built for solo entrepreneurs and small businesses. Manag
 - ✅ **Configurable currency**: Set `NEXT_PUBLIC_CURRENCY` (e.g. USD, EUR, INR)
 
 ### Communication (Optional)
-- 📧 Email notifications (SMTP) - configure in .env
-- 💬 WhatsApp notifications (Meta Cloud API) - configure in .env
+- 📧 **Email notifications (SMTP)** — real sending via nodemailer when configured
+- 💬 WhatsApp notifications (Meta Cloud API) — stub, graceful fallback
 - ⚠️ **App works without these integrations** (graceful fallback)
+
+**Email setup:** set `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` in `.env` (see `.env.example`).
+Port 465 uses implicit TLS automatically; other ports use STARTTLS (override with `SMTP_SECURE`).
+`SMTP_FROM` sets the sender address (defaults to `SMTP_USER`). If any of the three required
+values is missing, reminder emails are skipped without error.
 
 ## 🛠️ Tech Stack
 
@@ -105,9 +110,13 @@ See [DOCUMENTATION.md](./DOCUMENTATION.md) for complete API reference.
 - `POST /api/auth/logout` - Clear the session
 - `GET /api/auth/me` - Current user, or `{ authenticated: false, needsSetup }`
 
+> **List endpoints are paginated.** `GET` list responses return an envelope:
+> `{ items, total, page, pageSize, totalPages }`. Control with `?page=` (default 1)
+> and `?pageSize=` (default 25, max 100).
+
 **Leads:**
 - `POST /api/leads` - Create lead
-- `GET /api/leads?search=john&status=New` - List leads
+- `GET /api/leads?search=john&status=New&page=1&pageSize=25` - List leads (paginated, server-side search/filter)
 - `GET /api/leads/:id` - Get lead
 - `PATCH /api/leads/:id` - Update lead
 - `DELETE /api/leads/:id` - Delete lead
@@ -151,7 +160,9 @@ lib/
     ├── schemas.js               # zod validation schemas
     ├── crypto.js                # AES-256-GCM encrypt/decrypt/mask
     ├── rateLimit.js             # In-memory rate limiter
-    ├── notifications.js         # Email/WhatsApp (graceful fallback)
+    ├── mailer.js                # Cached SMTP transporter (nodemailer)
+    ├── notifications.js         # Email (SMTP) / WhatsApp (graceful fallback)
+    ├── pagination.js            # page/pageSize parsing + envelope
     └── handlers/                # Per-resource route handlers
         ├── leads.js
         ├── reminders.js

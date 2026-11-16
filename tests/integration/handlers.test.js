@@ -102,7 +102,8 @@ describe('lead lifecycle + ownership scoping', () => {
     const id = created.json.id
 
     const list = await readResponse(await leads.listLeads(authedReq(token)))
-    expect(list.json.some((l) => l.id === id)).toBe(true)
+    expect(list.json.items.some((l) => l.id === id)).toBe(true)
+    expect(list.json.total).toBeGreaterThanOrEqual(1)
 
     const updated = await readResponse(
       await leads.updateLead(authedReq(token, { method: 'PATCH', body: { status: 'In Progress' } }), { id })
@@ -133,7 +134,7 @@ describe('lead lifecycle + ownership scoping', () => {
     })
 
     const list = await readResponse(await leads.listLeads(authedReq(token)))
-    expect(list.json.some((l) => l.id === 'foreign-1')).toBe(false)
+    expect(list.json.items.some((l) => l.id === 'foreign-1')).toBe(false)
 
     // Direct fetch of the foreign lead should 404 for this owner.
     const err = await leads.getLead(authedReq(token), { id: 'foreign-1' }).catch((e) => e)
@@ -200,7 +201,7 @@ describe('reminders + payments respect lead ownership', () => {
     const list = await readResponse(
       await payments.listPayments(authedReq(token, { url: `http://localhost/api?leadId=${leadId}` }))
     )
-    expect(list.json.length).toBeGreaterThanOrEqual(1)
+    expect(list.json.items.length).toBeGreaterThanOrEqual(1)
   })
 })
 
@@ -247,5 +248,73 @@ describe('analytics are owner-scoped', () => {
     const db = await getDb()
     const foreignCount = await db.collection('leads').countDocuments({ ownerId: 'someone-else' })
     expect(foreignCount).toBeGreaterThanOrEqual(1)
+  })
+})
+
+
+describe('lead pagination', () => {
+  let token
+  let ownerId
+
+  beforeAll(async () => {
+    const login = await auth.login(
+      makeRequest({ method: 'POST', body: { email: 'owner@x.com', password: 'password123' } })
+    )
+    token = sessionTokenFrom(login)
+    const db = await getDb()
+    ownerId = (await db.collection('users').findOne({ email: 'owner@x.com' })).id
+
+    // Seed a clean, known set of paginated leads for this owner.
+    await db.collection('leads').deleteMany({ ownerId })
+    const now = Date.now()
+    const docs = Array.from({ length: 30 }, (_, i) => ({
+      id: `page-lead-${i}`,
+      ownerId,
+      name: `Lead ${String(i).padStart(2, '0')}`,
+      email: `lead${i}@x.com`,
+      status: i % 2 === 0 ? 'New' : 'Paid',
+      notes: [],
+      // Descending createdAt so index i is newest-first.
+      createdAt: new Date(now - i * 1000),
+      updatedAt: new Date(now - i * 1000),
+    }))
+    await db.collection('leads').insertMany(docs)
+  })
+
+  it('returns the first page with a total and totalPages', async () => {
+    const res = await readResponse(
+      await leads.listLeads(authedReq(token, { url: 'http://localhost/api?page=1&pageSize=10' }))
+    )
+    expect(res.json.items).toHaveLength(10)
+    expect(res.json.total).toBe(30)
+    expect(res.json.page).toBe(1)
+    expect(res.json.pageSize).toBe(10)
+    expect(res.json.totalPages).toBe(3)
+    // Newest first.
+    expect(res.json.items[0].id).toBe('page-lead-0')
+  })
+
+  it('returns a distinct second page', async () => {
+    const res = await readResponse(
+      await leads.listLeads(authedReq(token, { url: 'http://localhost/api?page=2&pageSize=10' }))
+    )
+    expect(res.json.items).toHaveLength(10)
+    expect(res.json.items[0].id).toBe('page-lead-10')
+    expect(res.json.page).toBe(2)
+  })
+
+  it('applies the status filter to the total count', async () => {
+    const res = await readResponse(
+      await leads.listLeads(authedReq(token, { url: 'http://localhost/api?status=Paid&pageSize=100' }))
+    )
+    expect(res.json.total).toBe(15)
+    expect(res.json.items.every((l) => l.status === 'Paid')).toBe(true)
+  })
+
+  it('clamps an oversized pageSize', async () => {
+    const res = await readResponse(
+      await leads.listLeads(authedReq(token, { url: 'http://localhost/api?pageSize=99999' }))
+    )
+    expect(res.json.pageSize).toBe(100)
   })
 })

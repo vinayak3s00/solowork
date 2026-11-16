@@ -36,6 +36,10 @@ const App = () => {
   const [loading, setLoading] = useState(false)
   const [leadsLoading, setLeadsLoading] = useState(true)
   const [remindersLoading, setRemindersLoading] = useState(true)
+  const [leadsPage, setLeadsPage] = useState(1)
+  const [leadsTotalPages, setLeadsTotalPages] = useState(1)
+  const [leadsTotal, setLeadsTotal] = useState(0)
+  const LEADS_PAGE_SIZE = 25
 
   // Lead form state
   const [leadForm, setLeadForm] = useState({
@@ -74,10 +78,9 @@ const App = () => {
     baseUrl: ''
   })
 
-  // Load data
+  // Load non-lead data on tab change
   useEffect(() => {
     if (activeTab === 'dashboard' || activeTab === 'leads') {
-      fetchLeads()
       fetchAnalytics()
     }
     if (activeTab === 'reminders') {
@@ -88,31 +91,37 @@ const App = () => {
     }
   }, [activeTab])
 
-  // Filter leads
+  // Server-side lead search/filter/pagination (debounced on search text).
   useEffect(() => {
-    let filtered = Array.isArray(leads) ? leads : []
-    
-    if (searchQuery) {
-      filtered = filtered.filter(lead => 
-        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
-    
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.status === statusFilter)
-    }
-    
-    setFilteredLeads(filtered)
-  }, [leads, searchQuery, statusFilter])
+    if (activeTab !== 'dashboard' && activeTab !== 'leads') return
+    const handle = setTimeout(() => {
+      fetchLeads({ page: leadsPage, search: searchQuery, status: statusFilter })
+    }, 300)
+    return () => clearTimeout(handle)
+  }, [activeTab, leadsPage, searchQuery, statusFilter])
+
+  // Reset to page 1 whenever the search or status filter changes.
+  useEffect(() => {
+    setLeadsPage(1)
+  }, [searchQuery, statusFilter])
+
+  // Refresh leads keeping the current page/search/filter.
+  const refreshLeads = () => fetchLeads({ page: leadsPage, search: searchQuery, status: statusFilter })
 
   // Fetch functions
-  const fetchLeads = async () => {
+  const fetchLeads = async ({ page = 1, search = '', status = 'all' } = {}) => {
     setLeadsLoading(true)
     try {
-      const response = await fetch('/api/leads')
+      const params = new URLSearchParams({ page: String(page), pageSize: String(LEADS_PAGE_SIZE) })
+      if (search) params.set('search', search)
+      if (status && status !== 'all') params.set('status', status)
+      const response = await fetch(`/api/leads?${params.toString()}`)
       const data = await response.json()
-      setLeads(Array.isArray(data) ? data : [])
+      const items = Array.isArray(data?.items) ? data.items : []
+      setLeads(items)
+      setFilteredLeads(items)
+      setLeadsTotal(typeof data?.total === 'number' ? data.total : items.length)
+      setLeadsTotalPages(typeof data?.totalPages === 'number' ? data.totalPages : 1)
     } catch (error) {
       console.error('Error fetching leads:', error)
       toast.error('Failed to fetch leads')
@@ -124,9 +133,9 @@ const App = () => {
   const fetchReminders = async () => {
     setRemindersLoading(true)
     try {
-      const response = await fetch('/api/reminders')
+      const response = await fetch('/api/reminders?pageSize=100')
       const data = await response.json()
-      setReminders(Array.isArray(data) ? data : [])
+      setReminders(Array.isArray(data?.items) ? data.items : [])
     } catch (error) {
       console.error('Error fetching reminders:', error)
     } finally {
@@ -136,9 +145,9 @@ const App = () => {
 
   const fetchPayments = async (leadId) => {
     try {
-      const response = await fetch(`/api/payments?leadId=${leadId}`)
+      const response = await fetch(`/api/payments?leadId=${leadId}&pageSize=100`)
       const data = await response.json()
-      setPayments(Array.isArray(data) ? data : [])
+      setPayments(Array.isArray(data?.items) ? data.items : [])
     } catch (error) {
       console.error('Error fetching payments:', error)
     }
@@ -177,7 +186,7 @@ const App = () => {
       if (response.ok) {
         toast.success('Lead created successfully!')
         setLeadForm({ name: '', email: '', phone: '', message: '', budget: '', serviceType: '' })
-        fetchLeads()
+        refreshLeads()
         fetchAnalytics()
       } else {
         toast.error('Failed to create lead')
@@ -200,7 +209,7 @@ const App = () => {
       })
       if (response.ok) {
         toast.success('Status updated!')
-        fetchLeads()
+        refreshLeads()
         fetchAnalytics()
       }
     } catch (error) {
@@ -220,7 +229,7 @@ const App = () => {
       })
       if (response.ok) {
         toast.success('Note added!')
-        fetchLeads()
+        refreshLeads()
         // Update selected lead
         const updatedLead = await fetch(`/api/leads/${leadId}`).then(r => r.json())
         setSelectedLead(updatedLead)
@@ -238,7 +247,7 @@ const App = () => {
       const response = await fetch(`/api/leads/${leadId}`, { method: 'DELETE' })
       if (response.ok) {
         toast.success('Lead deleted!')
-        fetchLeads()
+        refreshLeads()
         fetchAnalytics()
         setSelectedLead(null)
       }
@@ -376,10 +385,33 @@ const App = () => {
     }
   }
 
-  // Export current (filtered) leads to CSV
-  const handleExportLeads = () => {
-    const rows = Array.isArray(filteredLeads) ? filteredLeads : []
-    if (!rows.length) return
+  // Export ALL leads matching the current search/filter (across pages) to CSV.
+  const handleExportLeads = async () => {
+    let rows = []
+    try {
+      const params = new URLSearchParams({ page: '1', pageSize: '100' })
+      if (searchQuery) params.set('search', searchQuery)
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+      // Fetch pages until we've collected everything that matches.
+      let page = 1
+      let totalPages = 1
+      do {
+        params.set('page', String(page))
+        const res = await fetch(`/api/leads?${params.toString()}`)
+        const data = await res.json()
+        rows = rows.concat(Array.isArray(data?.items) ? data.items : [])
+        totalPages = typeof data?.totalPages === 'number' ? data.totalPages : 1
+        page += 1
+      } while (page <= totalPages)
+    } catch (error) {
+      console.error('Error exporting leads:', error)
+      toast.error('Failed to export leads')
+      return
+    }
+    if (!rows.length) {
+      toast.error('No leads to export')
+      return
+    }
     downloadCSV(`leads-${new Date().toISOString().split('T')[0]}.csv`, rows, [
       { key: 'name', label: 'Name' },
       { key: 'email', label: 'Email' },
@@ -672,6 +704,31 @@ const App = () => {
                       </div>
                       )}
                     </ScrollArea>
+                    {!leadsLoading && leadsTotal > 0 && (
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                        <p className="text-sm text-muted-foreground">
+                          Page {leadsPage} of {leadsTotalPages} · {leadsTotal} total
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={leadsPage <= 1}
+                            onClick={() => setLeadsPage((p) => Math.max(1, p - 1))}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={leadsPage >= leadsTotalPages}
+                            onClick={() => setLeadsPage((p) => Math.min(leadsTotalPages, p + 1))}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
