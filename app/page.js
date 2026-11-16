@@ -13,9 +13,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { toast, Toaster } from 'sonner'
-import { Users, TrendingUp, DollarSign, Bell, Plus, Search, Settings, Edit, Trash2, Calendar, Mail, MessageSquare, Save, Key } from 'lucide-react'
+import { Users, TrendingUp, DollarSign, Bell, Plus, Search, Settings, Edit, Trash2, Calendar, Mail, MessageSquare, Save, Key, LogOut } from 'lucide-react'
+import AuthGate, { useAuth } from '@/components/AuthGate'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { StatCardsSkeleton, ListSkeleton, EmptyState } from '@/components/dashboard/LoadingStates'
+import { downloadCSV } from '@/lib/csv'
+import { formatCurrency } from '@/lib/currency'
+import { Download } from 'lucide-react'
 
 const App = () => {
+  const { user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [leads, setLeads] = useState([])
   const [filteredLeads, setFilteredLeads] = useState([])
@@ -27,6 +34,8 @@ const App = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedLead, setSelectedLead] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [leadsLoading, setLeadsLoading] = useState(true)
+  const [remindersLoading, setRemindersLoading] = useState(true)
 
   // Lead form state
   const [leadForm, setLeadForm] = useState({
@@ -81,7 +90,7 @@ const App = () => {
 
   // Filter leads
   useEffect(() => {
-    let filtered = leads
+    let filtered = Array.isArray(leads) ? leads : []
     
     if (searchQuery) {
       filtered = filtered.filter(lead => 
@@ -99,23 +108,29 @@ const App = () => {
 
   // Fetch functions
   const fetchLeads = async () => {
+    setLeadsLoading(true)
     try {
       const response = await fetch('/api/leads')
       const data = await response.json()
-      setLeads(data)
+      setLeads(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching leads:', error)
       toast.error('Failed to fetch leads')
+    } finally {
+      setLeadsLoading(false)
     }
   }
 
   const fetchReminders = async () => {
+    setRemindersLoading(true)
     try {
       const response = await fetch('/api/reminders')
       const data = await response.json()
-      setReminders(data)
+      setReminders(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching reminders:', error)
+    } finally {
+      setRemindersLoading(false)
     }
   }
 
@@ -123,7 +138,7 @@ const App = () => {
     try {
       const response = await fetch(`/api/payments?leadId=${leadId}`)
       const data = await response.json()
-      setPayments(data)
+      setPayments(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching payments:', error)
     }
@@ -133,7 +148,7 @@ const App = () => {
     try {
       const response = await fetch('/api/admin/api-keys')
       const data = await response.json()
-      setApiKeys(data)
+      setApiKeys(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching API keys:', error)
     }
@@ -361,6 +376,23 @@ const App = () => {
     }
   }
 
+  // Export current (filtered) leads to CSV
+  const handleExportLeads = () => {
+    const rows = Array.isArray(filteredLeads) ? filteredLeads : []
+    if (!rows.length) return
+    downloadCSV(`leads-${new Date().toISOString().split('T')[0]}.csv`, rows, [
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'serviceType', label: 'Service Type' },
+      { key: 'budget', label: 'Budget' },
+      { key: 'status', label: 'Status' },
+      { key: 'message', label: 'Message' },
+      { key: 'createdAt', label: 'Created', format: (v) => (v ? new Date(v).toISOString() : '') },
+    ])
+    toast.success('Leads exported')
+  }
+
   // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
@@ -373,11 +405,11 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
       <Toaster position="top-right" richColors />
       
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+      <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -385,19 +417,37 @@ const App = () => {
                 <Users className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">SoloCRM</h1>
-                <p className="text-sm text-slate-500">Micro CRM for Solopreneurs</p>
+                <h1 className="text-2xl font-bold text-foreground">SoloCRM</h1>
+                <p className="text-sm text-muted-foreground">Micro CRM for Solopreneurs</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveTab('settings')}
-              className="gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              Settings
-            </Button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {user && (
+                <span className="hidden sm:block text-sm text-muted-foreground">
+                  {user.name || user.email}
+                </span>
+              )}
+              <ThemeToggle />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab('settings')}
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="gap-2"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign out</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -430,6 +480,9 @@ const App = () => {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard">
+            {!analytics ? (
+              <StatCardsSkeleton />
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Card>
                 <CardHeader className="pb-3">
@@ -460,7 +513,7 @@ const App = () => {
               <Card>
                 <CardHeader className="pb-3">
                   <CardDescription>Total Revenue</CardDescription>
-                  <CardTitle className="text-3xl">${analytics?.totalRevenue?.toFixed(2) || '0.00'}</CardTitle>
+                  <CardTitle className="text-3xl">{formatCurrency(analytics?.totalRevenue || 0)}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -483,6 +536,7 @@ const App = () => {
                 </CardContent>
               </Card>
             </div>
+            )}
 
             <Card>
               <CardHeader>
@@ -490,19 +544,34 @@ const App = () => {
                 <CardDescription>Your latest client inquiries</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {Array.isArray(filteredLeads) && filteredLeads.slice(0, 5).map(lead => (
-                    <div key={lead.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => { setSelectedLead(lead); setActiveTab('leads'); }}>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-slate-900">{lead.name}</h3>
-                        <p className="text-sm text-slate-500">{lead.email}</p>
+                {leadsLoading ? (
+                  <ListSkeleton rows={5} />
+                ) : filteredLeads.length === 0 ? (
+                  <EmptyState
+                    icon={Users}
+                    title="No leads yet"
+                    description="Share your capture link or add a lead to get started."
+                    action={
+                      <Button size="sm" className="gap-2" onClick={() => setActiveTab('capture')}>
+                        <Plus className="w-4 h-4" /> Add a lead
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {filteredLeads.slice(0, 5).map(lead => (
+                      <div key={lead.id} className="flex items-center justify-between p-4 bg-muted rounded-lg hover:bg-accent transition-colors cursor-pointer" onClick={() => { setSelectedLead(lead); setActiveTab('leads'); }}>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground">{lead.name}</h3>
+                          <p className="text-sm text-muted-foreground">{lead.email}</p>
+                        </div>
+                        <Badge className={`${getStatusColor(lead.status)} text-white`}>
+                          {lead.status}
+                        </Badge>
                       </div>
-                      <Badge className={`${getStatusColor(lead.status)} text-white`}>
-                        {lead.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -514,11 +583,25 @@ const App = () => {
               <div className="lg:col-span-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>All Leads</CardTitle>
-                    <CardDescription>Manage your client pipeline</CardDescription>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <CardTitle>All Leads</CardTitle>
+                        <CardDescription>Manage your client pipeline</CardDescription>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 shrink-0"
+                        disabled={!filteredLeads.length}
+                        onClick={handleExportLeads}
+                      >
+                        <Download className="w-4 h-4" />
+                        <span className="hidden sm:inline">Export CSV</span>
+                      </Button>
+                    </div>
                     <div className="flex gap-4 mt-4">
                       <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                         <Input
                           placeholder="Search leads..."
                           value={searchQuery}
@@ -542,11 +625,24 @@ const App = () => {
                   </CardHeader>
                   <CardContent>
                     <ScrollArea className="h-[600px] pr-4">
+                      {leadsLoading ? (
+                        <ListSkeleton rows={6} />
+                      ) : filteredLeads.length === 0 ? (
+                        <EmptyState
+                          icon={Users}
+                          title={searchQuery || statusFilter !== 'all' ? 'No matching leads' : 'No leads yet'}
+                          description={
+                            searchQuery || statusFilter !== 'all'
+                              ? 'Try adjusting your search or filter.'
+                              : 'Share your capture link or add a lead to get started.'
+                          }
+                        />
+                      ) : (
                       <div className="space-y-3">
-                        {Array.isArray(filteredLeads) && filteredLeads.map(lead => (
+                        {filteredLeads.map(lead => (
                           <div
                             key={lead.id}
-                            className={`p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer border-2 ${selectedLead?.id === lead.id ? 'border-blue-500' : 'border-transparent'}`}
+                            className={`p-4 bg-muted rounded-lg hover:bg-accent transition-colors cursor-pointer border-2 ${selectedLead?.id === lead.id ? 'border-blue-500' : 'border-transparent'}`}
                             onClick={() => {
                               setSelectedLead(lead)
                               fetchPayments(lead.id)
@@ -554,29 +650,27 @@ const App = () => {
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <h3 className="font-semibold text-slate-900">{lead.name}</h3>
-                                <p className="text-sm text-slate-500">{lead.email}</p>
-                                {lead.phone && <p className="text-sm text-slate-500">{lead.phone}</p>}
+                                <h3 className="font-semibold text-foreground">{lead.name}</h3>
+                                <p className="text-sm text-muted-foreground">{lead.email}</p>
+                                {lead.phone && <p className="text-sm text-muted-foreground">{lead.phone}</p>}
                               </div>
                               <Badge className={`${getStatusColor(lead.status)} text-white`}>
                                 {lead.status}
                               </Badge>
                             </div>
                             {lead.serviceType && (
-                              <p className="text-sm text-slate-600 mb-1"><span className="font-medium">Service:</span> {lead.serviceType}</p>
+                              <p className="text-sm text-muted-foreground mb-1"><span className="font-medium">Service:</span> {lead.serviceType}</p>
                             )}
                             {lead.budget && (
-                              <p className="text-sm text-slate-600"><span className="font-medium">Budget:</span> {lead.budget}</p>
+                              <p className="text-sm text-muted-foreground"><span className="font-medium">Budget:</span> {lead.budget}</p>
                             )}
-                            <p className="text-xs text-slate-400 mt-2">
+                            <p className="text-xs text-muted-foreground mt-2">
                               {new Date(lead.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                         ))}
-                        {(!filteredLeads || filteredLeads.length === 0) && (
-                          <p className="text-center text-slate-500 py-8">No leads found</p>
-                        )}
                       </div>
+                      )}
                     </ScrollArea>
                   </CardContent>
                 </Card>
@@ -624,7 +718,7 @@ const App = () => {
                         {selectedLead.message && (
                           <div>
                             <Label>Message</Label>
-                            <p className="text-sm text-slate-600 mt-1 p-3 bg-slate-50 rounded">{selectedLead.message}</p>
+                            <p className="text-sm text-muted-foreground mt-1 p-3 bg-muted rounded">{selectedLead.message}</p>
                           </div>
                         )}
 
@@ -635,9 +729,9 @@ const App = () => {
                           <ScrollArea className="h-[200px] mb-2">
                             <div className="space-y-2">
                               {selectedLead.notes?.map(note => (
-                                <div key={note.id} className="p-2 bg-yellow-50 rounded text-sm border border-yellow-200">
-                                  <p className="text-slate-700">{note.note}</p>
-                                  <p className="text-xs text-slate-400 mt-1">
+                                <div key={note.id} className="p-2 bg-yellow-50 dark:bg-yellow-950/30 rounded text-sm border border-yellow-200 dark:border-yellow-900">
+                                  <p className="text-foreground">{note.note}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
                                     {new Date(note.createdAt).toLocaleString()}
                                   </p>
                                 </div>
@@ -803,17 +897,17 @@ const App = () => {
                               <Label className="mb-2 block">Payment History</Label>
                               <div className="space-y-2">
                                 {Array.isArray(payments) && payments.map(payment => (
-                                  <div key={payment.id} className="p-2 bg-green-50 rounded text-sm border border-green-200">
+                                  <div key={payment.id} className="p-2 bg-green-50 dark:bg-green-950/30 rounded text-sm border border-green-200 dark:border-green-900">
                                     <div className="flex justify-between items-start">
                                       <div>
-                                        <p className="font-semibold text-slate-700">${payment.amount.toFixed(2)}</p>
-                                        <p className="text-xs text-slate-500">{payment.mode} - {payment.status}</p>
+                                        <p className="font-semibold text-foreground">{formatCurrency(payment.amount)}</p>
+                                        <p className="text-xs text-muted-foreground">{payment.mode} - {payment.status}</p>
                                       </div>
-                                      <p className="text-xs text-slate-400">
+                                      <p className="text-xs text-muted-foreground">
                                         {new Date(payment.date).toLocaleDateString()}
                                       </p>
                                     </div>
-                                    {payment.notes && <p className="text-xs text-slate-600 mt-1">{payment.notes}</p>}
+                                    {payment.notes && <p className="text-xs text-muted-foreground mt-1">{payment.notes}</p>}
                                   </div>
                                 ))}
                               </div>
@@ -825,7 +919,7 @@ const App = () => {
                   </Card>
                 ) : (
                   <Card>
-                    <CardContent className="flex items-center justify-center h-[400px] text-slate-500">
+                    <CardContent className="flex items-center justify-center h-[400px] text-muted-foreground">
                       <p>Select a lead to view details</p>
                     </CardContent>
                   </Card>
@@ -910,13 +1004,13 @@ const App = () => {
                   <CardDescription>Share this link with potential clients</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                    <code className="text-sm text-slate-700">
-                      {typeof window !== 'undefined' ? window.location.origin : ''}/
+                  <div className="p-4 bg-muted rounded-lg border border-border">
+                    <code className="text-sm text-foreground">
+                      {typeof window !== 'undefined' ? window.location.origin : ''}/capture
                     </code>
                   </div>
-                  <p className="text-sm text-slate-500 mt-2">
-                    Clients can visit this page and use the "Capture Lead" tab to submit their information.
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Share this public link with potential clients. They can submit their information without signing in.
                   </p>
                 </CardContent>
               </Card>
@@ -932,19 +1026,28 @@ const App = () => {
                   <CardDescription>Manage follow-ups and deadlines</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {remindersLoading ? (
+                    <ListSkeleton rows={4} />
+                  ) : !reminders || reminders.length === 0 ? (
+                    <EmptyState
+                      icon={Bell}
+                      title="No reminders yet"
+                      description="Open a lead and use Quick Actions to create your first follow-up reminder."
+                    />
+                  ) : (
                   <div className="space-y-3">
-                    {Array.isArray(reminders) && reminders.map(reminder => {
+                    {reminders.map(reminder => {
                       const lead = leads.find(l => l.id === reminder.leadId)
                       const isOverdue = new Date(reminder.dueDate) < new Date() && !reminder.completed
                       return (
                         <div
                           key={reminder.id}
-                          className={`p-4 rounded-lg border-2 ${reminder.completed ? 'bg-slate-50 border-slate-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}
+                          className={`p-4 rounded-lg border-2 ${reminder.completed ? 'bg-muted border-border' : isOverdue ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900' : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900'}`}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-slate-900">{reminder.title}</h3>
+                                <h3 className="font-semibold text-foreground">{reminder.title}</h3>
                                 <Badge variant="outline" className="text-xs">
                                   {reminder.type}
                                 </Badge>
@@ -960,14 +1063,14 @@ const App = () => {
                                 )}
                               </div>
                               {lead && (
-                                <p className="text-sm text-slate-600">For: {lead.name}</p>
+                                <p className="text-sm text-muted-foreground">For: {lead.name}</p>
                               )}
                               {reminder.description && (
-                                <p className="text-sm text-slate-600 mt-1">{reminder.description}</p>
+                                <p className="text-sm text-muted-foreground mt-1">{reminder.description}</p>
                               )}
                               <div className="flex items-center gap-2 mt-2">
-                                <Calendar className="w-4 h-4 text-slate-400" />
-                                <p className="text-sm text-slate-500">
+                                <Calendar className="w-4 h-4 text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">
                                   {new Date(reminder.dueDate).toLocaleString()}
                                 </p>
                               </div>
@@ -1002,10 +1105,8 @@ const App = () => {
                         </div>
                       )
                     })}
-                    {(!reminders || reminders.length === 0) && (
-                      <p className="text-center text-slate-500 py-8">No reminders yet</p>
-                    )}
                   </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1063,7 +1164,7 @@ const App = () => {
                         onChange={(e) => setApiKeyForm({ ...apiKeyForm, baseUrl: e.target.value })}
                         placeholder="https://api.openai.com/v1"
                       />
-                      <p className="text-xs text-slate-500 mt-1">Only needed for custom/other providers</p>
+                      <p className="text-xs text-muted-foreground mt-1">Only needed for custom/other providers</p>
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
                       <Plus className="w-4 h-4 mr-2" />
@@ -1077,11 +1178,11 @@ const App = () => {
                     <h3 className="font-semibold mb-4">Saved API Keys</h3>
                     <div className="space-y-2">
                       {Array.isArray(apiKeys) && apiKeys.map(key => (
-                        <div key={key.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                        <div key={key.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                           <div>
-                            <p className="font-medium text-slate-900">{key.name}</p>
-                            <p className="text-sm text-slate-500">{key.provider} - {key.apiKey}</p>
-                            {key.baseUrl && <p className="text-xs text-slate-400">{key.baseUrl}</p>}
+                            <p className="font-medium text-foreground">{key.name}</p>
+                            <p className="text-sm text-muted-foreground">{key.provider} - {key.apiKey}</p>
+                            {key.baseUrl && <p className="text-xs text-muted-foreground">{key.baseUrl}</p>}
                           </div>
                           <Button
                             variant="destructive"
@@ -1093,7 +1194,7 @@ const App = () => {
                         </div>
                       ))}
                       {(!apiKeys || apiKeys.length === 0) && (
-                        <p className="text-center text-slate-500 py-4">No API keys added yet</p>
+                        <p className="text-center text-muted-foreground py-4">No API keys added yet</p>
                       )}
                     </div>
                   </div>
@@ -1107,7 +1208,7 @@ const App = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
                       <h4 className="font-medium text-blue-900 mb-2">Email (SMTP)</h4>
                       <p className="text-sm text-blue-700 mb-2">
                         Configure these environment variables in your .env file:
@@ -1120,7 +1221,7 @@ const App = () => {
                       </code>
                     </div>
 
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
                       <h4 className="font-medium text-green-900 mb-2">WhatsApp (Meta Cloud API)</h4>
                       <p className="text-sm text-green-700 mb-2">
                         Configure these environment variables in your .env file:
@@ -1131,7 +1232,7 @@ const App = () => {
                       </code>
                     </div>
 
-                    <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-900">
                       <p className="text-sm text-yellow-800">
                         <strong>Note:</strong> These integrations are optional. The app will work without them,
                         but reminder notifications won't be sent.
@@ -1148,4 +1249,10 @@ const App = () => {
   )
 }
 
-export default App
+export default function Page() {
+  return (
+    <AuthGate>
+      <App />
+    </AuthGate>
+  )
+}

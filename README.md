@@ -13,6 +13,10 @@ A complete CRM solution built for solo entrepreneurs and small businesses. Manag
 - ✅ **Analytics Dashboard**: Real-time metrics and insights
 - ✅ **Admin Settings**: Manage multiple AI API keys
 - ✅ **Beautiful UI**: Modern, responsive design with shadcn/ui
+- ✅ **Dark mode**: System-aware theme with a one-click toggle
+- ✅ **Loading skeletons & empty states**: Polished perceived performance
+- ✅ **CSV export**: Download your (filtered) leads
+- ✅ **Configurable currency**: Set `NEXT_PUBLIC_CURRENCY` (e.g. USD, EUR, INR)
 
 ### Communication (Optional)
 - 📧 Email notifications (SMTP) - configure in .env
@@ -76,11 +80,30 @@ yarn dev
 
 5. **Open [http://localhost:3000](http://localhost:3000)**
 
+## 🧪 Testing & Type-Checking
+
+```bash
+yarn test         # watch mode (Vitest)
+yarn test:run     # single run (unit + integration)
+yarn typecheck    # tsc --noEmit over the server lib (checkJs)
+```
+
+- **Unit tests** cover the pure server logic: crypto, password hashing, JWT, zod schemas, CSV export, rate limiting, and safe error mapping.
+- **Integration tests** run the real API handlers against an in-memory MongoDB (`mongodb-memory-server`), verifying the auth flow, per-owner data scoping, ownership guards, encryption at rest, and analytics.
+- **Type-checking** runs TypeScript in `checkJs` mode over `lib/server` and utility libs.
+- **CI** (`.github/workflows/ci.yml`) runs typecheck → tests → build on every push and pull request.
+
 ## 📖 API Documentation
 
 See [DOCUMENTATION.md](./DOCUMENTATION.md) for complete API reference.
 
 ### Quick Reference
+
+**Auth:**
+- `POST /api/auth/register` - Create the owner account (only while no user exists)
+- `POST /api/auth/login` - Sign in, sets a session cookie
+- `POST /api/auth/logout` - Clear the session
+- `GET /api/auth/me` - Current user, or `{ authenticated: false, needsSetup }`
 
 **Leads:**
 - `POST /api/leads` - Create lead
@@ -181,7 +204,9 @@ README.md                        # This file
 ## 🔐 Security Notes
 
 **Current (MVP):**
-- No authentication (single user) — planned next
+- **Authentication** via session cookies (httpOnly, SameSite=Lax, Secure in prod); passwords hashed with scrypt
+- **Per-owner data scoping** — every lead, reminder, payment, and API key is isolated by owner
+- Public lead-capture endpoint stays open (rate-limited); everything else requires login
 - **AI API keys encrypted at rest** (AES-256-GCM) and masked in responses
 - **All API input validated** with zod (email format, amounts, dates, enums, lengths)
 - **Rate limiting** on the public lead-capture endpoint (10 req/min per IP)

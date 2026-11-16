@@ -18,6 +18,7 @@ import {
 import { createPayment, listPayments } from '@/lib/server/handlers/payments'
 import { createApiKey, listApiKeys, deleteApiKey } from '@/lib/server/handlers/apiKeys'
 import { getAnalytics } from '@/lib/server/handlers/analytics'
+import { register, login, logout, me } from '@/lib/server/handlers/auth'
 
 // CORS preflight
 export async function OPTIONS() {
@@ -29,6 +30,12 @@ export async function OPTIONS() {
 const routes = [
   ['GET', /^\/$/, () => json({ message: 'SoloCRM API Ready' })],
   ['GET', /^\/root$/, () => json({ message: 'SoloCRM API Ready' })],
+
+  // Auth
+  ['POST', /^\/auth\/register$/, (req) => register(req)],
+  ['POST', /^\/auth\/login$/, (req) => login(req)],
+  ['POST', /^\/auth\/logout$/, () => logout()],
+  ['GET', /^\/auth\/me$/, (req) => me(req)],
 
   // Leads
   ['POST', /^\/leads$/, (req) => createLead(req)],
@@ -51,11 +58,11 @@ const routes = [
 
   // Admin / API keys
   ['POST', /^\/admin\/api-keys$/, (req) => createApiKey(req)],
-  ['GET', /^\/admin\/api-keys$/, () => listApiKeys()],
+  ['GET', /^\/admin\/api-keys$/, (req) => listApiKeys(req)],
   ['DELETE', /^\/admin\/api-keys\/([^/]+)$/, (req, id) => deleteApiKey(req, { id })],
 
   // Analytics
-  ['GET', /^\/analytics$/, () => getAnalytics()],
+  ['GET', /^\/analytics$/, (req) => getAnalytics(req)],
 ]
 
 async function handleRoute(request, { params }) {
